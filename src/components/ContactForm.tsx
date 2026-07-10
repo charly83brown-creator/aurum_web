@@ -32,6 +32,7 @@ const zonas = [
 export function ContactForm() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof typeof form, string | undefined>>>({});
 
   const [form, setForm] = useState({
     nombre: '',
@@ -46,23 +47,75 @@ export function ContactForm() {
     mensaje: '',
   });
 
-  const update = (key: keyof typeof form, value: string) =>
+  const update = (key: keyof typeof form, value: string) => {
     setForm((f) => ({ ...f, [key]: value }));
+    setFieldErrors((prev) => ({ ...prev, [key]: undefined }));
+  };
 
   const pantallasFinal = form.pantallas === 'otra' ? form.pantallasOtra : form.pantallas;
+
+  const inputClass = (field: keyof typeof form) =>
+    `form-input ${fieldErrors[field] ? 'border-red-500/80 ring-1 ring-red-500/30 focus:border-red-500 focus:ring-red-200' : ''}`;
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setErrorMsg('');
+    setFieldErrors({});
 
-    // Validación: si eligen "otra" la cantidad debe ser entero positivo
+    const requiredFields: Array<keyof typeof form> = [
+      'nombre',
+      'telefono',
+      'sector',
+      'negocio',
+      'email',
+      'zona',
+      'plan',
+      'pantallas',
+      'mensaje',
+    ];
+
+    const missingFields = requiredFields.filter((field) => !form[field].trim());
+    const newFieldErrors: Partial<Record<keyof typeof form, string>> = {};
+
+    if (missingFields.length > 0) {
+      missingFields.forEach((field) => {
+        newFieldErrors[field] = 'Campo obligatorio.';
+      });
+
+      if (form.pantallas === 'otra' && !form.pantallasOtra.trim()) {
+        newFieldErrors.pantallas = 'Introduce una cantidad válida de pantallas.';
+      }
+
+      setStatus('error');
+      setErrorMsg('Todos los campos son obligatorios.');
+      setFieldErrors(newFieldErrors);
+      return;
+    }
+
     if (form.pantallas === 'otra') {
       const v = parseInt(form.pantallasOtra || '', 10);
-      if (!form.pantallasOtra || Number.isNaN(v) || v < 1) {
+      if (!form.pantallasOtra.trim() || Number.isNaN(v) || v < 1) {
         setStatus('error');
-        setErrorMsg('Introduce una cantidad válida de pantallas.');
+        setErrorMsg('Todos los campos son obligatorios.');
+        setFieldErrors({ pantallas: 'Introduce una cantidad válida de pantallas.' });
         return;
       }
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(form.email.trim())) {
+      setStatus('error');
+      setErrorMsg('El correo es incorrecto.');
+      setFieldErrors({ email: 'Introduce un email válido.' });
+      return;
+    }
+
+    const phoneRegex = /^[0-9+\s()\-]+$/;
+    if (!phoneRegex.test(form.telefono.trim())) {
+      setStatus('error');
+      setErrorMsg('El teléfono es incorrecto.');
+      setFieldErrors({ telefono: 'Introduce un teléfono válido.' });
+      return;
     }
 
     setStatus('loading');
@@ -252,6 +305,7 @@ export function ContactForm() {
                 icon={<User size={16} />}
                 label="Nombre completo *"
                 required
+                error={fieldErrors.nombre}
               >
                 <input
                   type="text"
@@ -259,36 +313,52 @@ export function ContactForm() {
                   value={form.nombre}
                   onChange={(e) => update('nombre', e.target.value)}
                   placeholder="Tu nombre"
-                  className="form-input"
+                  className={inputClass('nombre')}
                 />
               </Field>
-              <Field icon={<Phone size={16} />} label="Teléfono">
+              <Field
+                icon={<Phone size={16} />}
+                label="Teléfono"
+                error={fieldErrors.telefono}
+              >
                 <input
                   type="tel"
                   value={form.telefono}
                   onChange={(e) => update('telefono', e.target.value)}
                   placeholder="600 000 000"
-                  className="form-input"
+                  className={inputClass('telefono')}
                 />
               </Field>
             </div>
 
             {/* Negocio + Sector */}
             <div className="grid md:grid-cols-2 gap-5 mb-5">
-              <Field icon={<Building2 size={16} />} label="Nombre del negocio">
+              <Field
+                icon={<Building2 size={16} />}
+                label="Nombre del negocio"
+                required
+                error={fieldErrors.negocio}
+              >
                 <input
                   type="text"
                   value={form.negocio}
                   onChange={(e) => update('negocio', e.target.value)}
                   placeholder="Tu negocio"
-                  className="form-input"
+                  className={inputClass('negocio')}
+                  required
                 />
               </Field>
-              <Field icon={<Briefcase size={16} />} label="Sector">
+              <Field
+                icon={<Briefcase size={16} />}
+                label="Sector"
+                required
+                error={fieldErrors.sector}
+              >
                 <select
                   value={form.sector}
                   onChange={(e) => update('sector', e.target.value)}
-                  className="form-input"
+                  className={inputClass('sector')}
+                  required
                 >
                   <option value="">Selecciona un sector</option>
                   {sectores.map((s) => (
@@ -300,20 +370,32 @@ export function ContactForm() {
 
             {/* Email + Zona */}
             <div className="grid md:grid-cols-2 gap-5 mb-5">
-              <Field icon={<Mail size={16} />} label="Email">
+              <Field
+                icon={<Mail size={16} />}
+                label="Email"
+                required
+                error={fieldErrors.email}
+              >
                 <input
                   type="email"
                   value={form.email}
                   onChange={(e) => update('email', e.target.value)}
                   placeholder="tucorreo@email.com"
-                  className="form-input"
+                  className={inputClass('email')}
+                  required
                 />
               </Field>
-              <Field icon={<MapPin size={16} />} label="Zona de interés">
+              <Field
+                icon={<MapPin size={16} />}
+                label="Zona de interés"
+                required
+                error={fieldErrors.zona}
+              >
                 <select
                   value={form.zona}
                   onChange={(e) => update('zona', e.target.value)}
-                  className="form-input"
+                  className={inputClass('zona')}
+                  required
                 >
                   <option value="">Selecciona una zona</option>
                   {zonas.map((z) => (
@@ -325,11 +407,17 @@ export function ContactForm() {
 
             {/* Plan + Pantallas */}
             <div className="grid md:grid-cols-2 gap-5 mb-5">
-              <Field icon={<Monitor size={16} />} label="Plan de interés">
+              <Field
+                icon={<Monitor size={16} />}
+                label="Plan de interés"
+                required
+                error={fieldErrors.plan}
+              >
                 <select
                   value={form.plan}
                   onChange={(e) => update('plan', e.target.value)}
-                  className="form-input"
+                  className={inputClass('plan')}
+                  required
                 >
                   <option value="">Selecciona un plan</option>
                   {planes.map((p) => (
@@ -340,12 +428,18 @@ export function ContactForm() {
                 </select>
               </Field>
 
-              <Field icon={<Monitor size={16} />} label="NÚM. DE PANTALLAS" required={form.pantallas === 'otra'}>
+              <Field
+                icon={<Monitor size={16} />}
+                label="NÚM. DE PANTALLAS"
+                required
+                error={fieldErrors.pantallas}
+              >
                 <div>
                   <select
                     value={form.pantallas || ''}
                     onChange={(e) => update('pantallas', e.target.value)}
-                    className="form-input"
+                    className={inputClass('pantallas')}
+                    required
                   >
                     <option value="">Selecciona cantidad</option>
                     {pantallasOpts.map((n) => (
@@ -364,13 +458,9 @@ export function ContactForm() {
                         value={form.pantallasOtra}
                         onChange={(e) => update('pantallasOtra', e.target.value)}
                         placeholder="Introduce la cantidad"
-                        required={form.pantallas === 'otra'}
-                        aria-invalid={status === 'error' && errorMsg.includes('pantallas')}
-                        className="form-input max-w-xs"
+                        required
+                        className={inputClass('pantallas') + ' max-w-xs'}
                       />
-                      {status === 'error' && errorMsg.includes('pantallas') && (
-                        <p className="mt-2 text-xs text-red-400">Introduce una cantidad válida de pantallas.</p>
-                      )}
                     </div>
                   )}
                 </div>
@@ -379,13 +469,19 @@ export function ContactForm() {
 
             {/* Mensaje */}
             <div className="mb-6">
-              <Field icon={<MessageSquare size={16} />} label="Mensaje (opcional)">
+              <Field
+                icon={<MessageSquare size={16} />}
+                label="Mensaje"
+                required
+                error={fieldErrors.mensaje}
+              >
                 <textarea
                   value={form.mensaje}
                   onChange={(e) => update('mensaje', e.target.value)}
                   placeholder="Cuéntanos qué quieres anunciar..."
                   rows={3}
-                  className="form-input resize-none"
+                  className={`${inputClass('mensaje')} resize-none`}
+                  required
                 />
               </Field>
             </div>
@@ -467,11 +563,13 @@ function Field({
   label,
   required,
   children,
+  error,
 }: {
   icon: React.ReactNode;
   label: string;
   required?: boolean;
   children: React.ReactNode;
+  error?: string;
 }) {
   return (
     <label className="block">
@@ -485,6 +583,11 @@ function Field({
         </span>
         {children}
       </div>
+      {error ? (
+        <p className="mt-2 text-xs text-red-400" role="alert">
+          {error}
+        </p>
+      ) : null}
     </label>
   );
 }
