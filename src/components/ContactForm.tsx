@@ -133,8 +133,12 @@ export function ContactForm() {
     });
 
     if (error) {
+      // Mostrar el error real para depuración
+      // eslint-disable-next-line no-console
+      console.error('Supabase insert error', error);
       setStatus('error');
-      setErrorMsg('No se pudo enviar el formulario. Inténtalo de nuevo.');
+      const details = [error.message, error.details, error.hint].filter(Boolean).join(' - ');
+      setErrorMsg(details || 'No se pudo enviar el formulario. Inténtalo de nuevo.');
       return;
     }
 
