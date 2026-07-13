@@ -120,68 +120,70 @@ export function ContactForm() {
     }
 
     setStatus('loading');
-
-    const { error } = await supabase.from('contact_leads').insert({
-      nombre: form.nombre,
-      telefono: form.telefono || null,
-      sector: form.sector || null,
-      negocio: form.negocio || null,
-      email: form.email || null,
-      zona: form.zona || null,
-      plan: form.plan || null,
-      pantallas: pantallasFinal || null,
-      mensaje: form.mensaje || null,
-    });
-
-    if (error) {
-      // Mostrar el error real para depuración
-      // eslint-disable-next-line no-console
-      console.error('Supabase insert error', error);
-      setStatus('error');
-      const details = [error.message, error.details, error.hint].filter(Boolean).join(' - ');
-      setErrorMsg(details || 'No se pudo enviar el formulario. Inténtalo de nuevo.');
-      return;
+    // 1. INSERCIÓN EN SUPABASE
+    try {
+      const { error } = await supabase.from('contact_leads').insert({
+        nombre: form.nombre,
+        telefono: form.telefono || null,
+        sector: form.sector || null,
+        negocio: form.negocio || null,
+        email: form.email || null,
+        zona: form.zona || null,
+        plan: form.plan || null,
+        pantallas: pantallasFinal || null,
+        mensaje: form.mensaje || null,
+      });
+      if (error) console.error('Error al insertar en Supabase:', error);
+    } catch (dbErr) {
+      console.warn('Fallo de red con Supabase:', dbErr);
     }
 
-    // Envío exitoso: abrir chat de WhatsApp del equipo con los datos (sin coste)
-    const waNumber = '34647029400';
-    const waMessage = `Nuevo lead - Aurum Ride Ads:\nNombre: ${form.nombre || '-'}\nTeléfono: ${form.telefono || '-'}\nPlan: ${form.plan || '-'}\nPantallas: ${pantallasFinal || '-'}\nMensaje: ${form.mensaje || '-'} `;
-    // Además abrir cliente de correo del usuario con mensaje prellenado (mailto)
-    const mailTo = 'aurumrideads@gmail.com';
-    const mailSubject = 'Nuevo lead - Aurum Ride Ads';
-    const mailBody = `Nombre: ${form.nombre || '-'}\nTeléfono: ${form.telefono || '-'}\nPlan: ${form.plan || '-'}\nPantallas: ${pantallasFinal || '-'}\nMensaje: ${form.mensaje || '-'}`;
+    // 2. ENVÍO DE CORREOS AUTOMÁTICOS CON EMAILJS
+    try {
+      const emailParams = {
+        nombre: form.nombre,
+        telefono: form.telefono,
+        email: form.email,
+        negocio: form.negocio,
+        sector: form.sector,
+        zona: form.zona,
+        plan: form.plan,
+        pantallas: pantallasFinal,
+        mensaje: form.mensaje,
+      };
 
-    if (typeof window !== 'undefined') {
-      // Enviar también al Google Sheet webhook si está configurado (VITE_SHEET_WEBHOOK)
-      const sheetUrl = import.meta.env.VITE_SHEET_WEBHOOK as string | undefined;
-      if (sheetUrl) {
-        try {
-          await fetch(sheetUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              nombre: form.nombre || '-',
-              telefono: form.telefono || '-',
-              plan: form.plan || '-',
-              pantallas: pantallasFinal || '-',
-              mensaje: form.mensaje || '-',
-              timestamp: new Date().toISOString(),
-            }),
-          });
-        } catch (err) {
-          // no bloqueante — solo loguear
-          // eslint-disable-next-line no-console
-          console.warn('Error enviando a Google Sheet webhook', err);
-        }
-      }
+      await emailjs.send(
+        import.meta.env.VITE_EMAILJS_SERVICE_ID,
+        import.meta.env.VITE_EMAILJS_TEMPLATE_EMPRESA_ID,
+        emailParams,
+        import.meta.env.VITE_EMAILJS_PUBLIC_KEY
+      );
 
-      const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMessage)}`;
-      // Abrir WhatsApp en una nueva pestaña
-      window.open(waUrl, '_blank');
-      // Abrir cliente de correo (abrirá el cliente del usuario)
-      const mailUrl = `mailto:${mailTo}?subject=${encodeURIComponent(mailSubject)}&body=${encodeURIComponent(mailBody)}`;
-      // usar location.href para asegurar que se abra el cliente de correo
-      window.location.href = mailUrl;
+      await emailjs.send(
+        import.meta.env.VITE_EMAILJS_SERVICE_ID,
+        import.meta.env.VITE_EMAILJS_TEMPLATE_CLIENTE_ID,
+        emailParams,
+           try {
+      const n8nWebhookUrl = 'https://ngrok-free.dev';
+
+      await fetch(n8nWebhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nombre: form.nombre,
+          telefono: form.telefono,
+          email: form.email,
+          negocio: form.negocio,
+          sector: form.sector,
+          zona: form.zona,
+          plan: form.plan,
+          pantallas: pantallasFinal,
+          mensaje: form.mensaje,
+          timestamp: new Date().toISOString(),
+        }),
+      });
+    } catch (n8nError) {
+      console.error('Error enviando datos a n8n:', n8nError);
     }
 
     setStatus('success');
@@ -189,6 +191,8 @@ export function ContactForm() {
       nombre: '', telefono: '', sector: '', negocio: '',
       email: '', zona: '', plan: '', pantallas: '', pantallasOtra: '', mensaje: '',
     });
+  };
+
   };
 
   if (status === 'success') {
