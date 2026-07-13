@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import emailjs from '@emailjs/browser';
 import { Send, CheckCircle2, Loader2, User, Phone, Mail, Building2, MapPin, Monitor, MessageSquare, Briefcase, Sparkles } from 'lucide-react';
 import { Reveal } from './Reveal';
 import { supabase } from '../lib/supabase';
